@@ -1,0 +1,12 @@
+# Mac
+.DS_Store
+
+# Python
+*.egg-info
+*.pyc
+*.pyo
+.cache
+.coverage
+.pipcache
+.tox
+__pycache__
