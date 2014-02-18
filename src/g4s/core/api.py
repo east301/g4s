@@ -85,10 +85,10 @@ class CalendarApi(object):
         This method should be implemented in derived class.
 
         :param events:
-            a :py:class:`dict` which maps old event to new event. The events included in
-            ``events.keys()`` must have valid ID, however, events in ``events.values()`` don't have
+            a :py:class:`dict` which maps old event to a dict which contains difference between old
+            event and new event. The events included in ``events.keys()`` must have valid ID.
             to.
-        :type events:  dict of (g4s.core.model.Event, g4s.core.model.Event)
+        :type events:  dict of (g4s.core.model.Event, dict)
 
         :rtype:  dict of (:py:class:`g4s.core.model.Event`, :py:class:`g4s.core.model.Event`)
         :return: a :py:class:`dict` which maps old event to new event.
