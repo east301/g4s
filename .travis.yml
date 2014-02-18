@@ -10,3 +10,4 @@ install:
 
 script:
   - py.test --cov g4s
+  - ./build-api-doc.sh

@@ -10,3 +10,6 @@
 .pipcache
 .tox
 __pycache__
+
+# project
+api-doc
