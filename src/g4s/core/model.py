@@ -13,6 +13,7 @@ __all__ = (
 from .arg import ArgumentNullError
 from .arg import ArgumentTypeError
 from .date import DateTime
+from .debug import LogicError
 
 
 class Participant(object):
@@ -145,6 +146,39 @@ class Event(object):
             is_public=self.is_public,
             last_update=self.last_update
         )
+
+    def get_difference(self, other):
+        """
+        Gets differences between the two events.
+
+        :param other: an event to be compared
+        :type other:  :py:class:`g4s.core.model.Event`
+
+        :raises g4s.core.arg.ArgumentNullError:
+            if ``other`` is :py:const:`None`
+        :raises g4s.core.arg.ArgumentTypeError:
+            if ``other`` is not :py:class:`g4s.core.model.Event`
+
+        .. note::
+
+            This method does not detect difference of ``participants`` field.
+        """
+
+        #
+        if other is None:
+            raise ArgumentNullError('other')
+        if not isinstance(other, Event):
+            raise ArgumentTypeError('other', Event)
+
+        #
+        ed1 = self.to_dict()
+        ed2 = other.to_dict()
+
+        keys = set(ed1).intersection(set(ed2))
+        if (keys != set(ed1)) or (keys != set(ed2)):
+            raise LogicError  # pragma: no cover
+
+        return dict((k, (ed1[k], ed2[k])) for k in keys if ed1[k] != ed2[k])
 
     @classmethod
     def validate_type(cls, type):

@@ -307,6 +307,45 @@ def test__Event__from_dict__returns_correct_result():
 
 
 ###
+### g4s.core.model.Event.get_difference
+###
+
+def test__Event__get_difference__raises_ArgumentNullError_if_None_is_specified():
+    event = Event(**DEFAULT_EVENT)
+
+    with raises_argument_null_error('other'):
+        event.get_difference(None)
+
+
+@pytest.mark.parametrize('obj', [1, 2.34, 'foo', object()])
+def test__Event__get_difference__raises_ArgumentTypeError_if_object_except_Event_is_specified(obj):
+    event = Event(**DEFAULT_EVENT)
+
+    with raises_argument_type_error('other'):
+        event.get_difference(obj)
+
+
+@pytest.mark.parametrize('expected_result', [
+    dict(), dict(title='a'), dict(title='foo', description='bar'),
+])
+def test__Event__get_difference__returns_correct_result__001(expected_result):
+    event_params1 = DEFAULT_EVENT.copy()
+    event_params2 = DEFAULT_EVENT.copy()
+    event_params2.update(expected_result)
+
+    event1 = Event(**event_params1)
+    event2 = Event(**event_params2)
+
+    result = event1.get_difference(event2)
+
+    assert len(result) == len(expected_result)
+    for key in expected_result.keys():
+        assert key in result
+        assert result[key][0] == event_params1[key]
+        assert result[key][1] == event_params2[key]
+
+
+###
 ### g4s.core.model.InvalidEventDateTimePairError
 ###
 
