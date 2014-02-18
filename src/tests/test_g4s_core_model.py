@@ -117,6 +117,25 @@ def test__Event__is_same_event__returns_correct_result__002(params):
 
 
 ###
+### g4s.core.model.Event.to_dict
+###
+
+def test__Event__to_dict__returns_correct_result():
+    event = Event(**DEFAULT_EVENT)
+    event_dict = event.to_dict()
+
+    assert isinstance(event_dict, dict)
+    assert len(event_dict) == len(DEFAULT_EVENT) - 1
+
+    for key, expected_result in event_dict.items():
+        if key == 'participants':
+            continue
+
+        assert key in event_dict
+        assert event_dict[key] == expected_result
+
+
+###
 ### g4s.core.model.Event.validate_type
 ###
 
@@ -256,6 +275,35 @@ def test__Event__validate_participants__returns_correct_result():
     assert len(participants) == len(result)
     for participant in participants:
         assert participant in result
+
+
+###
+### g4s.core.model.Event.from_dict
+###
+
+def test__Event__from_dict__raises_ArgumentNullError_if_None_is_specified():
+    with raises_argument_null_error('instance'):
+        Event.from_dict(None)
+
+
+@pytest.mark.parametrize('obj', [1, 2.34, 'foo', object()])
+def test__Event__from_dict__raises_ArgumentTypeError_if_object_except_dict_is_specified(obj):
+    with raises_argument_type_error('instance'):
+        Event.from_dict(obj)
+
+
+def test__Event__from_dict__returns_correct_result():
+    event = Event.from_dict(DEFAULT_EVENT)
+
+    assert event.id == DEFAULT_EVENT['id']
+    assert event.title == DEFAULT_EVENT['title']
+    assert event.description == DEFAULT_EVENT['description']
+    assert event.start == DEFAULT_EVENT['start']
+    assert event.end == DEFAULT_EVENT['end']
+    assert event.is_allday == DEFAULT_EVENT['is_allday']
+    assert event.is_public == DEFAULT_EVENT['is_public']
+    assert event.last_update == DEFAULT_EVENT['last_update']
+    assert len(event.participants) == 0
 
 
 ###

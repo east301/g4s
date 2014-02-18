@@ -120,6 +120,32 @@ class Event(object):
             self.is_allday == other.is_allday
         )
 
+    def to_dict(self):
+        """
+        Converts contents of the event to :py:class:`dict`.
+        The dict created by this method can be converted back using
+        :py:method:`g4s.core.model.Event.from_dict`.
+
+        :rtype:  dict
+        :return: a dict which contains contents of the event
+
+        .. note::
+
+           The ``participants`` field cannot be serialized.
+        """
+
+        return dict(
+            id=self.id,
+            type=self.type,
+            title=self.title,
+            description=self.description,
+            start=self.start,
+            end=self.end,
+            is_allday=self.is_allday,
+            is_public=self.is_public,
+            last_update=self.last_update
+        )
+
     @classmethod
     def validate_type(cls, type):
         """
@@ -246,6 +272,38 @@ class Event(object):
                 raise ArgumentTypeError('participants[*]', expected_type)
 
         return participants
+
+    @classmethod
+    def from_dict(cls, instance):
+        """
+        Converts the specified :py:class:`dict` to an instance of :py:class:`g4s.core.model.Event`.
+
+        :param instance: a dict which contains event information
+        :type instance: dict
+
+        :rtype:  :py:class:`g4s.core.model.Event`
+        :return: an instance of :py:class:`g4s.core.model.Event`
+
+        :raises g4s.core.arg.ArgumentNullError: if ``instance`` is :py:const:`None`
+        :raises g4s.core.arg.ArgumentTypeError: if ``instance`` is not :py:const:`dict`
+        """
+
+        if instance is None:
+            raise ArgumentNullError('instance')
+        if not isinstance(instance, dict):
+            raise ArgumentTypeError('instance', dict)
+
+        return cls(
+            id=instance['id'],
+            type=instance['type'],
+            title=instance['title'],
+            description=instance['description'],
+            start=instance['start'],
+            end=instance['end'],
+            is_allday=instance['is_allday'],
+            participants=tuple(),
+            is_public=instance['is_public'],
+            last_update=instance['last_update'])
 
 
 class InvalidEventDateTimePairError(Exception):
