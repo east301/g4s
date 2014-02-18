@@ -125,7 +125,7 @@ class Event(object):
         """
         Converts contents of the event to :py:class:`dict`.
         The dict created by this method can be converted back using
-        :py:method:`g4s.core.model.Event.from_dict`.
+        :py:meth:`g4s.core.model.Event.from_dict`.
 
         :rtype:  dict
         :return: a dict which contains contents of the event
