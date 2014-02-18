@@ -8,7 +8,11 @@ __all__ = (
     'CybozuGaroonApi',
 )
 
+import lxml.etree
+import requests
 from ..core.api import CalendarApi
+from ..core.api import NetworkError
+from ..core.api import ResponseParseError
 from ..core.arg import ArgumentNullError
 from ..core.arg import ArgumentTypeError
 
@@ -55,3 +59,41 @@ class CybozuGaroonApi(CalendarApi):
         self._user = params['user']
         self._password = params['password']
         self._language = params['language']
+
+    def get_soap_endpoints(self):
+        """
+        Gets mapping between SOAP service name and its endpoint URL.
+
+        :rtype:  dict[str, str]
+        :return: a dict which maps SOAP service name and its endpoint URL
+        """
+
+        #
+        try:
+            response = requests.get(self._url + '?WSDL')
+            response.raise_for_status()
+        except Exception as ex:
+            raise NetworkError('Failed to get WSDL.') from ex
+
+        try:
+            wsdl = lxml.etree.fromstring(response.text.encode('UTF-8'))
+        except Exception as ex:
+            raise ResponseParseError('Failed to parse WSDL.') from ex
+
+        #
+        result = {}
+        nss = {
+            'ns': 'http://schemas.xmlsoap.org/wsdl/',
+            'soap12': 'http://schemas.xmlsoap.org/wsdl/soap12/',
+        }
+
+        try:
+            for service_node in wsdl.xpath('//ns:service', namespaces=nss):
+                service_name = service_node.attrib['name']
+                url = service_node.xpath('.//soap12:address', namespaces=nss)[0].attrib['location']
+                result[service_name] = url
+        except Exception as ex:
+            raise ResponseParseError('Failed to parse WSDL.') from ex
+
+        #
+        return result

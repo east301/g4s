@@ -2,6 +2,7 @@
 
 import contextlib
 import datetime
+import os
 import pytest
 from g4s.core.arg import ArgumentNullError
 from g4s.core.arg import ArgumentTypeError
@@ -53,3 +54,25 @@ def raises_argument_type_error(name):
         yield
 
     assert excinfo.value.name == name
+
+
+###
+### Data loading
+###
+
+def create_reader_for_module(module):
+    def wrapper(*args):
+        return read(module, *args)
+
+    return wrapper
+
+
+def read(*args):
+    my_path = os.path.dirname(__file__)
+
+    path = os.path.join(my_path, 'data')
+    for arg in args:
+        path = os.path.join(path, arg)
+
+    with open(path, 'rb') as fin:
+        return fin.read()
