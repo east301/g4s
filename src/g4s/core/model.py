@@ -13,6 +13,7 @@ __all__ = (
 from .arg import ArgumentNullError
 from .arg import ArgumentTypeError
 from .date import DateTime
+from .debug import LogicError
 
 
 class Participant(object):
@@ -119,6 +120,65 @@ class Event(object):
             self.end == other.end and
             self.is_allday == other.is_allday
         )
+
+    def to_dict(self):
+        """
+        Converts contents of the event to :py:class:`dict`.
+        The dict created by this method can be converted back using
+        :py:method:`g4s.core.model.Event.from_dict`.
+
+        :rtype:  dict
+        :return: a dict which contains contents of the event
+
+        .. note::
+
+           The ``participants`` field cannot be serialized.
+        """
+
+        return dict(
+            id=self.id,
+            type=self.type,
+            title=self.title,
+            description=self.description,
+            start=self.start,
+            end=self.end,
+            is_allday=self.is_allday,
+            is_public=self.is_public,
+            last_update=self.last_update
+        )
+
+    def get_difference(self, other):
+        """
+        Gets differences between the two events.
+
+        :param other: an event to be compared
+        :type other:  :py:class:`g4s.core.model.Event`
+
+        :raises g4s.core.arg.ArgumentNullError:
+            if ``other`` is :py:const:`None`
+        :raises g4s.core.arg.ArgumentTypeError:
+            if ``other`` is not :py:class:`g4s.core.model.Event`
+
+        .. note::
+
+            This method does not detect difference of ``participants`` field.
+        """
+
+        #
+        if other is None:
+            raise ArgumentNullError('other')
+        if not isinstance(other, Event):
+            raise ArgumentTypeError('other', Event)
+
+        #
+        ed1 = self.to_dict()
+        ed2 = other.to_dict()
+
+        keys = set(ed1).intersection(set(ed2))
+        if (keys != set(ed1)) or (keys != set(ed2)):
+            raise LogicError  # pragma: no cover
+
+        return dict((k, (ed1[k], ed2[k])) for k in keys if ed1[k] != ed2[k])
 
     @classmethod
     def validate_type(cls, type):
@@ -246,6 +306,38 @@ class Event(object):
                 raise ArgumentTypeError('participants[*]', expected_type)
 
         return participants
+
+    @classmethod
+    def from_dict(cls, instance):
+        """
+        Converts the specified :py:class:`dict` to an instance of :py:class:`g4s.core.model.Event`.
+
+        :param instance: a dict which contains event information
+        :type instance: dict
+
+        :rtype:  :py:class:`g4s.core.model.Event`
+        :return: an instance of :py:class:`g4s.core.model.Event`
+
+        :raises g4s.core.arg.ArgumentNullError: if ``instance`` is :py:const:`None`
+        :raises g4s.core.arg.ArgumentTypeError: if ``instance`` is not :py:const:`dict`
+        """
+
+        if instance is None:
+            raise ArgumentNullError('instance')
+        if not isinstance(instance, dict):
+            raise ArgumentTypeError('instance', dict)
+
+        return cls(
+            id=instance['id'],
+            type=instance['type'],
+            title=instance['title'],
+            description=instance['description'],
+            start=instance['start'],
+            end=instance['end'],
+            is_allday=instance['is_allday'],
+            participants=tuple(),
+            is_public=instance['is_public'],
+            last_update=instance['last_update'])
 
 
 class InvalidEventDateTimePairError(Exception):
