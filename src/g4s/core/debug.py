@@ -9,7 +9,7 @@ __all__ = (
 )
 
 
-class LogicError(object):
+class LogicError(Exception):
     """
     Programming logic error.
     """

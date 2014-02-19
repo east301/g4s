@@ -6,6 +6,9 @@ Calendar API interface.
 
 __all__ = (
     'CalendarApi',
+    'NetworkError',
+    'RequestError',
+    'ResponseParseError',
 )
 
 from .arg import ArgumentNullError
@@ -123,3 +126,26 @@ class CalendarApi(object):
         """
 
         return False  # pragma: no cover
+
+
+class NetworkError(IOError):
+    """
+    An exception which is raised when a network error is happened.
+    """
+
+    pass
+
+
+class RequestError(ValueError):
+    """
+    An exception which is raised when an error for a request is returned by remote server.
+    """
+
+    pass
+
+class ResponseParseError(ValueError):
+    """
+    An exception which is raised when failed to parse response from remote server.
+    """
+
+    pass

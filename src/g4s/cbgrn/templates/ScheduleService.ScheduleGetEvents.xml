@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope
+  xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Header>
+    <Action
+      soap:mustUnderstand="1"
+      xmlns="http://schemas.xmlsoap.org/ws/2003/03/addressing">
+      ScheduleGetEvents
+    </Action>
+    <Timestamp
+      soap:mustUnderstand="1"
+      Id="id"
+      xmlns="http://schemas.xmlsoap.org/ws/2002/07/utility">
+      <Created>{{created | utc_datetime}}</Created>
+      <Expires>{{expires | utc_datetime}}</Expires>
+    </Timestamp>
+    <Security soap:mustUnderstand="1">
+      <UsernameToken>
+        <Username>{{login_name}}</Username>
+        <Password>{{password}}</Password>
+      </UsernameToken>
+    </Security>
+    <Locale>{{language}}</Locale>
+  </soap:Header>
+  <soap:Body>
+    <ScheduleGetEvents xmlns="http://wsdl.cybozu.co.jp/base/2008">
+      <parameters start="{{start | utc_datetime}}" end="{{end | utc_datetime}}"/>
+    </ScheduleGetEvents>
+  </soap:Body>
+</soap:Envelope>
