@@ -165,7 +165,8 @@ class CybozuGaroonApi(CalendarApi):
         try:
             return template.render(params)
         except jinja2.exceptions.UndefinedError as ex:  # pragma: no cover
-            raise LogicError('Failed to render SOAP request body. Some required values are missing.')
+            msg = 'Failed to render SOAP request body. Some required values are missing.'
+            raise LogicError(msg) from ex
         except Exception as ex:  # pragma: no cover
             raise LogicError('Failed to render SOAP request body.') from ex
 
