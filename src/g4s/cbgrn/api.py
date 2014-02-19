@@ -123,6 +123,22 @@ class CybozuGaroonApi(CalendarApi):
         :return: SOAP response
         """
 
+        #
+        if service is None:
+            raise ArgumentNullError('service')
+        if action is None:
+            raise ArgumentNullError('action')
+        if action_params is None:
+            raise ArgumentNullError('action_params')
+
+        if not isinstance(service, str):
+            raise ArgumentTypeError('service', str)
+        if not isinstance(action, str):
+            raise ArgumentTypeError('action', str)
+        if not isinstance(action_params, dict):
+            raise ArgumentTypeError('action_params', dict)
+
+        #
         request_text = self._render_request_body(service, action, action_params)
         response_text = self._send_soap_request(service, action, request_text)
         response = self._parse_soap_response(response_text)
@@ -148,7 +164,7 @@ class CybozuGaroonApi(CalendarApi):
 
         try:
             return template.render(params)
-        except jinja2.exceptions.UndefinedError as ex:
+        except jinja2.exceptions.UndefinedError as ex:  # pragma: no cover
             raise LogicError('Failed to render SOAP request body. Some required values are missing.')
         except Exception as ex:  # pragma: no cover
             raise LogicError('Failed to render SOAP request body.') from ex

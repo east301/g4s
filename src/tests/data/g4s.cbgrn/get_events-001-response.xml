@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  get_event:
+    * start: 2014-01-01T00:00:00 (UTC)
+    * end:   2014-01-02T00:00:00 (UTC)
+
+  response:
+    * no events retrieved
+-->
+<soap:Envelope
+  xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:schedule="http://wsdl.cybozu.co.jp/schedule/2008">
+  <soap:Header>
+    <vendor>Cybozu</vendor>
+    <product>Garoon</product>
+    <product_type>1</product_type>
+    <version>3.5.0</version>
+    <apiversion>1.2.0</apiversion>
+  </soap:Header>
+  <soap:Body>
+    <schedule:ScheduleGetEventsResponse>
+      <returns/>
+    </schedule:ScheduleGetEventsResponse>
+  </soap:Body>
+</soap:Envelope>
