@@ -7,6 +7,7 @@ Calendar API interface.
 __all__ = (
     'CalendarApi',
     'NetworkError',
+    'RequestError',
     'ResponseParseError',
 )
 
@@ -134,6 +135,13 @@ class NetworkError(IOError):
 
     pass
 
+
+class RequestError(ValueError):
+    """
+    An exception which is raised when an error for a request is returned by remote server.
+    """
+
+    pass
 
 class ResponseParseError(ValueError):
     """
