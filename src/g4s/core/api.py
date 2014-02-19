@@ -143,6 +143,7 @@ class RequestError(ValueError):
 
     pass
 
+
 class ResponseParseError(ValueError):
     """
     An exception which is raised when failed to parse response from remote server.
