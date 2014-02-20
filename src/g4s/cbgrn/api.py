@@ -22,6 +22,8 @@ from ..core.arg import ArgumentTypeError
 from ..core.date import DateTime
 from ..core.date import TimeZone
 from ..core.debug import LogicError
+from ..core.model import Event
+from ..core.model import Participant
 
 
 class CybozuGaroonApi(CalendarApi):
@@ -69,6 +71,34 @@ class CybozuGaroonApi(CalendarApi):
 
         #
         self._endpoint_cache = None
+
+    def get_events(self, start, end):
+        """
+        DOCUMENT ME
+        """
+
+        #
+        if start is None:
+            raise ArgumentNullError('start')
+        if end is None:
+            raise ArgumentNullError('end')
+
+        if not isinstance(start, DateTime):
+            raise ArgumentTypeError('start', DateTime)
+        if not isinstance(end, DateTime):
+            raise ArgumentTypeError('end', DateTime)
+
+        if start > end:
+            raise ValueError('`start` must be same as `end`, or comes before `end`.')
+
+        #
+        params = dict(start=start, end=end)
+        response = self.execute_soap_request('ScheduleService', 'ScheduleGetEvents', params)
+
+        try:
+            return tuple(self._create_event_parser(response))
+        except Exception as ex:
+            raise
 
     def get_soap_endpoints(self):
         """
@@ -144,6 +174,114 @@ class CybozuGaroonApi(CalendarApi):
         response = self._parse_soap_response(response_text)
 
         return response
+
+    def _create_event_parser(self, response):
+        for node in response.xpath('//schedule_event'):
+            try:
+                event = self._parse_single_event(node)
+            except Exception as ex:
+                # TODO: add code to log the exception
+                continue
+
+            if event is None:
+                # when unsupported event type found
+                continue
+
+            yield event
+
+    def _parse_single_event(self, node):
+        id = int(node.attrib['id'])
+        type = node.attrib['type'].lower()
+
+        if type in ('normal', 'banner'):
+            type = Event.NORMAL if type == 'normal' else Event.BANNER
+            return self._parse_normal_event(node, id, type)
+        else:
+            # unsupported event types (e.g. repeat and temporary)
+            return None
+
+    def _parse_normal_event(self, node, id, type):
+        #
+        (is_public, last_update, detail, description, start_tz_name, end_tz_name,
+            all_day, start_only, members) = self._parse_common_event_information(node)
+
+        #
+        start_tz_name = node.attrib['timezone']
+        is_allday = self._parse_bool(node.attrib['allday'])
+        is_start_only = self._parse_bool(node.attrib['start_only'])
+        nss = dict(s2008='http://schemas.cybozu.co.jp/schedule/2008')
+
+        #
+        if is_allday:
+            dt_node = node.xpath('.//2008:when/s2008:date', namespaces=nss)[0]
+            start = DateTime.parse(dt_node.attrib['start'], start_tz_name)
+            end = DateTime.parse(dt_node.attrib['end'], node.attrib['end_timezone'])
+
+        else:
+            dt_node = node.xpath('.//2008:when/s2008:datetime', namespaces=nss)[0]
+            start = DateTime.parse(dt_node.attrib['start'], start_tz_name)
+
+            if is_start_only:
+                end = None
+            else:
+                end = DateTime.parse(dt_node.attrib['end'], node.attrib['end_timezone'])
+
+        return Event(
+            id, type, detail, description, start, end, is_allday, members, is_public, last_update)
+
+    def _parse_common_event_information(self, node):
+        #
+        is_public = node.attrib['public_type'].lower()
+        version = int(node.attrib['version'])
+
+        detail = node.attrib['detail']
+        description = node.attrib.get('description')
+
+        start_tz_name = node.attrib['timezone']
+        end_tz_name = node.attrib.get('end_timezone')
+        all_day = self._parse_bool(node.attrib['all_day'])
+        start_only = self._parse_bool(node.attrib['start_only'])
+
+        members = tuple(self._create_member_parser(node))
+
+        #
+        is_public = public_type == 'public'
+
+        ## TODO: remove hardcording of timezone name 'Asia/Tokyo'
+        ##   `version` should be interpreted as 'system(server) local' timestamp,
+        ##   however, there seems no way to get server's time zone configuration.
+        vt = datetime.datetime.fromtimestamp(version).timetuple()[:6]
+        last_update = DateTime.get(*vt, tzinfo='Asia/Tokyo')
+
+        #
+        return (
+            is_public, last_update, detail, description,
+            start_tz_name, end_tz_name, all_day, start_only, members
+        )
+
+    def _parse_member_parser(self, node):
+        nss = dict(s2008='http://schemas.cybozu.co.jp/schedule/2008')
+        ordering = lambda m: int(m.get('order', 0))
+
+        member_nodes = node.xpath('.//s2008:user', namespaces=nss)
+        for member_node in sorted(member_nodes, key=ordering):
+            id = int(member_node.attrib['id'])
+            name = member_node.attrib['name']
+
+            yield Participant(id, name)
+
+    def _parse_bool(self, text):
+        text = text.lower()
+        if text == 'true':
+            return True
+        elif text == 'false':
+            return False
+
+        raise Exception  # TODO
+
+    ###
+    ### SOAP
+    ###
 
     def _render_request_body(self, service, action, action_params):
         #

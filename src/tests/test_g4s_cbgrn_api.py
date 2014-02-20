@@ -323,6 +323,54 @@ def test__CybozuGaroonApi__init__works_correctly(language):
     assert api._language == params['language']
 
 
+###
+### g4s.cbgrn.api.CybozuGaroonApi.get_events
+###
+
+def test__CybozuGaroonApi__get_events__raises_ArgumentNullError_if_None_is_specified():
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 1, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 2, tzinfo='UTC')
+
+    with raises_argument_null_error('start'):
+        api.get_events(None, end)
+
+    with raises_argument_null_error('end'):
+        api.get_events(start, None)
+
+@pytest.mark.parametrize('obj', [1, 2.34, 'foo', object()])
+def test__CybozuGaroonApi__get_events__raises_ArgumentTypeError_if_object_except_DateTime_is_specified(obj):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 1, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 2, tzinfo='UTC')
+
+    with raises_argument_type_error('start'):
+        api.get_events(obj, end)
+
+    with raises_argument_type_error('end'):
+        api.get_events(start, obj)
+
+
+@pytest.mark.parametrize('obj', [1, 2.34, 'foo', object()])
+def test__CybozuGaroonApi__get_events__raises_ValueError_if_invalid_start_end_pair_is_specified(obj):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 1, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 2, tzinfo='UTC')
+
+    with pytest.raises(ValueError):
+        api.get_events(end, start)
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_empty_event_set_is_returned(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 1, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 2, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    assert events is not None
+    assert len(events) == 0
+
+
 
 ###
 ### g4s.cbgrn.api.CybozuGaroonApi.get_soap_endpoints
