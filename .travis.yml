@@ -13,4 +13,5 @@ script:
 
 after_success:
   - sudo apt-get install -qq sloccount
-  - pip install pep8 pip-tools
+  - pip install coviolationsio_app coverage pep8 pip-tools
+  - covio
