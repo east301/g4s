@@ -1,0 +1,139 @@
+---
+info:
+  name: get_events
+  description: sets of SOAP requests and responses to test CybozuGaroonApi.get_events method
+
+soap:
+  service: ScheduleService
+  action:  ScheduleGetEvents
+
+files:
+  ###
+  get_events-001:
+    description: tests the method can parse SOAP response which contains no event
+
+    request:
+      start: 2014-01-01T00:00:00Z
+      end:   2014-01-02T00:00:00Z
+
+    response:
+      error:
+        has_error: false
+
+      events: []
+
+    tests:
+      - test__CybozuGaroonApi__get_events__returns_correct_result_when_empty_event_set_is_returned
+
+  ###
+  get_events-002:
+    description: tests the method can parse SOAP response which contains one event
+
+    request:
+      start: 2014-01-02T00:00:00Z
+      end:   2014-01-07T00:00:00Z
+
+    response:
+      error:
+        has_error: false
+
+      events:
+        - id: 11225
+          event_type:   normal
+          detail:       event
+          version:      0
+          timezone:     Asia/Tokyo
+          end_timezone: Asia/Tokyo
+          allday:       false
+          start_only:   false
+          participants:
+            - id:    1
+              name:  foo
+              order: 0
+          when:
+            - start:    2014-01-03T00:00:00Z
+            - end:      2014-01-03T03:00:00Z
+
+    tests:
+      - test__CybozuGaroonApi__get_events__returns_correct_result_when_single_event_is_returned
+
+  ###
+  get_events-003:
+    description: tests the method raises an exception if required value to parse event information is missing
+
+    request:
+      start: 2014-01-03T00:00:00Z
+      end:   2014-01-04T00:00:00Z
+
+    response:
+      error:
+        has_error:   true
+        description: events are not constructed from the response because some required values are missing
+
+      events:
+        - id: 11225  # other values (e.g. event_type, detail, etc.) are missing
+
+    tests:
+      - test__CybozuGaroonApi__get_events__returns_correct_result_when_required_value_is_missing_in_response
+
+  ###
+  get_events-004:
+    description: tests the method can parse the SOAP response which contains an all-day event
+
+    request:
+      start: 2014-01-04T00:00:00Z
+      end:   2014-01-09T00:00:00Z
+
+    response:
+      error:
+        has_error: false
+
+      events:
+        - id: 11225
+          event_type:   normal
+          detail:       event
+          version:      0
+          timezone:     Asia/Tokyo
+          end_timezone: Asia/Tokyo
+          allday:       true
+          start_only:   false
+          participants:
+            - id:    1
+              name:  foo
+              order: 0
+          when:
+            - start:    2014-01-05
+              end:      2014-01-05
+
+      tests:
+        - test__CybozuGaroonApi__get_events__returns_correct_result_when_all_day_event_is_returned
+
+  ###
+  get_events-005:
+    description: tests the method can parse the SOAP response which contains a start-only event
+
+    request:
+      start: 2014-01-05T00:00:00Z
+      end:   2014-01-10T00:00:00Z
+
+    response:
+      error:
+        has_error: false
+
+      events:
+        - id: 11225
+          event_type:   normal
+          detail:       event
+          version:      0
+          timezone:     Asia/Tokyo
+          allday:       false
+          start_only:   true
+          participants:
+            - id:    1
+              name:  foo
+              order: 0
+          when:
+            - start:    2014-01-06T00:00:00Z
+
+    tests:
+      - test__CybozuGaroonApi__get_events__returns_correct_result_when_start_only_event_is_returned

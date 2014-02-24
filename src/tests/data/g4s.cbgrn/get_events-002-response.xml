@@ -28,7 +28,8 @@
     <schedule:ScheduleGetEventsResponse>
       <returns>
         <!-- event1 -->
-        <schedule_event id="11225"
+        <schedule_event
+          id="11225"
           event_type="normal"
           public_type="public"
           detail="event"

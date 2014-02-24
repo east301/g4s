@@ -5,7 +5,12 @@
     * end:   2014-01-09T00:00:00 (UTC)
 
   response:
-    * no attributes (error)
+    * title:         event
+      start:         2014-01-05:00:00:00+09:00
+      end:           2014-01-05:00:00:00+09:00
+      is_allday:     true
+      participants:  id=1 name=foo
+      is_public:     true
 -->
 <soap:Envelope
   xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
