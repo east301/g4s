@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import mock
+import io
+import jinja2
 import lxml.etree
+import mock
 import pytest
 import requests
+import yaml
 from g4s.cbgrn.api import CybozuGaroonApi
 from g4s.core.api import NetworkError
 from g4s.core.api import ResponseParseError
 from g4s.core.date import DateTime
+from g4s.core.model import Event
 from .util import check_if_current_datetime_is_correctly_fixed
 from .util import fix_current_datetime
 from .util import parse_xml
@@ -16,6 +20,87 @@ from .util import raises_argument_type_error
 from .util import read
 from .util import xml_compare
 
+
+###
+### utilities
+###
+
+def create_soap_request_response_pairs_from_yaml(name):
+    data = yaml.load(read('g4s.cbgrn', name))
+
+    request_generator_info = data['generators']['request']
+    response_generator_info = data['generators']['response']
+
+    create_soap_request = globals()[request_generator_info['function']]
+    create_soap_response = globals()[response_generator_info['function']]
+
+    pairs = []
+    for file_name, file_info in data['files'].items():
+        request_xml = create_soap_request(request_generator_info, file_info['request'])
+        response_xml = create_soap_response(response_generator_info, file_info['response'])
+
+        row = (
+            file_name, data['soap']['service'], data['soap']['action'],
+            file_info['request'], request_xml, file_info['response'], response_xml,
+        )
+
+        pairs.append(row)
+
+    return pairs
+
+
+def create_soap_request(generator_info, request_info):
+    template = jinja2.Template(read('g4s.cbgrn', generator_info['template']).decode('utf-8'))
+    body = template.render(request_info)
+    xml = lxml.etree.fromstring(body.encode('utf-8'))
+    return xml
+
+
+def create_soap_response(generator_info, response_info):
+    template = jinja2.Template(read('g4s.cbgrn', generator_info['template']).decode('utf-8'))
+    body = template.render(response_info)
+    xml = lxml.etree.fromstring(body.encode('utf-8'))
+    return xml
+
+
+def verify_events(events, expected_events_name):
+    record = [r for r in SOAP_REQUEST_RESPONSE_PAIRS if r[0] == expected_events_name][0]
+    name, service, action, req_info, req_xml, res_info, res_xml = record
+    error_event_ids = res_info['error'].get('event_ids', [])
+    expected_events = [e for e in res_info['events'] if e.get('id') not in error_event_ids]
+
+    if not expected_events:
+        assert len(events) == 0
+
+    else:
+        assert len(events) == len(expected_events)
+
+        for expected_event_info in expected_events:
+            expected_event_id = expected_event_info['id']
+
+            matched_events = [e for e in events if e.id == expected_event_id]
+            assert len(matched_events) == 1
+
+            event = matched_events[0]
+
+            #
+            if 'event_type' in expected_event_info:
+                type = expected_event_info['event_type']
+                type = {'normal': Event.NORMAL, 'banner': Event.BANNER}[type]
+                assert event.type == type
+            if 'public_type' in expected_event_info:
+                is_public = expected_event_info['public_type'].lower() == 'public'
+                assert event.is_public == is_public
+            if 'detail' in expected_event_info:
+                assert event.title == expected_event_info['detail']
+            if 'description' in expected_event_info:
+                assert event.description == expected_event_info['description']
+            if 'timezone' in expected_event_info:
+                assert event.start.tzinfo.g4s_name == expected_event_info['timezone']
+            if 'end_timezone' in expected_event_info:
+                assert event.end.tzinfo.g4s_name == expected_event_info['end_timezone']
+
+            # TODO
 
 ###
 ### constant values
@@ -43,9 +128,7 @@ VALID_SOAP_ENDPOINTS = {
     'WorkflowService': GRN_SERVER_URL + '/cbpapi/workflow/api?',
 }
 
-SOAP_REQUEST_RESPONSE_PAIRS = [
-    ('get_events-001', 'ScheduleService', 'ScheduleGetEvents'),
-]
+SOAP_REQUEST_RESPONSE_PAIRS = create_soap_request_response_pairs_from_yaml('get_events.yml')
 
 
 ###
@@ -59,11 +142,6 @@ def patch_requests_to_cause_network_error(monkeypatch, target):
         return response
 
     monkeypatch.setattr('requests.' + target, my_request_method)
-
-
-def check_if_requests_cause_network_error(target):
-    with pytest.raises(requests.exceptions.HTTPError):
-        getattr(requests, target)('http://www.google.com').raise_for_status()
 
 
 def patch_requests_get_to_return_specified_wsdl(monkeypatch, wsdl_path):
@@ -81,53 +159,33 @@ def patch_requests_get_to_return_specified_wsdl(monkeypatch, wsdl_path):
     monkeypatch.setattr('requests.get', my_request_get)
 
 
-def check_if_requests_get_returns_correct_wsdl(wsdl_path):
-    response = requests.get(SOAP_WSDL_URL)
-    text = response.text
-    expected_text = read(wsdl_path).decode('utf-8')
-
-    assert response.text == expected_text
-
-
 def patch_requests_post_to_return_correct_soap_response(monkeypatch):
     def my_request_post(url, data, *args, **kwargs):
         #
         request_xml = parse_xml(data)
 
         #
-        response_prefix = None
-        for prefix, service, action in SOAP_REQUEST_RESPONSE_PAIRS:
-            canditate_url = VALID_SOAP_ENDPOINTS[service]
-            canditate_xml = parse_xml(read('g4s.cbgrn', prefix + '-request.xml'))
+        for record in SOAP_REQUEST_RESPONSE_PAIRS:
+            name, service, action, req_info, req_xml, res_info, res_xml = record
+            if url != VALID_SOAP_ENDPOINTS[service]: continue
+            if not xml_compare(request_xml, req_xml): continue
 
-            if url == canditate_url and xml_compare(request_xml, canditate_xml):
-                response_prefix = prefix
-                break
+            response_xml = res_xml
+            break
 
-        #
-        if response_prefix is None:
+        else:
             raise Exception('Failed to find response for the SOAP request.')
 
         #
-        response_text = read('g4s.cbgrn', response_prefix + '-response.xml').decode('utf-8')
+        buf = io.BytesIO()
+        response_xml.getroottree().write(buf, pretty_print=True)
 
         response = mock.Mock(spec=requests.Response)
-        type(response).text = mock.PropertyMock(return_value=response_text)
+        type(response).text = mock.PropertyMock(return_value=buf.getvalue().decode('utf-8'))
 
         return response
 
     monkeypatch.setattr('requests.post', my_request_post)
-
-
-def check_if_requests_post_returns_correct_response():
-    request_data = read('g4s.cbgrn', 'get_events-001-request.xml')
-    response = requests.post(VALID_SOAP_ENDPOINTS['ScheduleService'], data=request_data)
-    response.raise_for_status()
-
-    response_xml = parse_xml(response.text.encode('utf-8'))
-    expected_response_xml = parse_xml(read('g4s.cbgrn', 'get_events-001-response.xml'))
-
-    assert xml_compare(response_xml, expected_response_xml)
 
 
 def patch_requests_post_to_invalid_xml_text(monkeypatch):
@@ -137,14 +195,6 @@ def patch_requests_post_to_invalid_xml_text(monkeypatch):
         return response
 
     monkeypatch.setattr('requests.post', my_request_post)
-
-
-def check_if_requests_post_returns_invalid_xml_text():
-    response = requests.post('http://example.com', data='foo')
-    response.raise_for_status()
-
-    with pytest.raises(Exception):
-        lxml.etree.fromstring(response.text.encode('utf-8'))
 
 
 def patch_requests_post_to_return_soap_error(monkeypatch):
@@ -158,22 +208,10 @@ def patch_requests_post_to_return_soap_error(monkeypatch):
     monkeypatch.setattr('requests.post', my_request_post)
 
 
-def check_if_requests_post_returns_soap_error():
-    response = requests.post('http://example.com', data='foo')
-    response.raise_for_status()
-
-    assert 'Fault' in response.text
-
-
 @pytest.fixture
 def network_error(monkeypatch):
     patch_requests_to_cause_network_error(monkeypatch, 'get')
     patch_requests_to_cause_network_error(monkeypatch, 'post')
-
-
-def test__network_error(network_error):
-    check_if_requests_cause_network_error('get')
-    check_if_requests_cause_network_error('post')
 
 
 @pytest.fixture
@@ -181,17 +219,9 @@ def network_post_error(monkeypatch):
     patch_requests_to_cause_network_error(monkeypatch, 'post')
 
 
-def test__network_post_error(network_post_error):
-    check_if_requests_cause_network_error('post')
-
-
 @pytest.fixture
 def invalid_wsdl_001(monkeypatch):
     patch_requests_get_to_return_specified_wsdl(monkeypatch, 'g4s.cbgrn/invalid_wsdl_001.xml')
-
-
-def test__invalid_wsdl_001(invalid_wsdl_001):
-    check_if_requests_get_returns_correct_wsdl('g4s.cbgrn/invalid_wsdl_001.xml')
 
 
 @pytest.fixture
@@ -199,17 +229,9 @@ def invalid_wsdl_002(monkeypatch):
     patch_requests_get_to_return_specified_wsdl(monkeypatch, 'g4s.cbgrn/invalid_wsdl_002.xml')
 
 
-def test__invalid_wsdl_002(invalid_wsdl_002):
-    check_if_requests_get_returns_correct_wsdl('g4s.cbgrn/invalid_wsdl_002.xml')
-
-
 @pytest.fixture
 def valid_wsdl_001(monkeypatch):
     patch_requests_get_to_return_specified_wsdl(monkeypatch, 'g4s.cbgrn/valid_wsdl_001.xml')
-
-
-def test__valid_wsdl_001(valid_wsdl_001):
-    check_if_requests_get_returns_correct_wsdl('g4s.cbgrn/valid_wsdl_001.xml')
 
 
 @pytest.fixture
@@ -217,26 +239,14 @@ def valid_incompleted_wsdl_001(monkeypatch):
     patch_requests_get_to_return_specified_wsdl(monkeypatch, 'g4s.cbgrn/valid_incompleted_wsdl_001.xml')
 
 
-def test__valid_incompleted_wsdl_001(valid_incompleted_wsdl_001):
-    check_if_requests_get_returns_correct_wsdl('g4s.cbgrn/valid_incompleted_wsdl_001.xml')
-
-
 @pytest.fixture
 def valid_soap_response(monkeypatch):
     patch_requests_post_to_return_correct_soap_response(monkeypatch)
 
 
-def test__valid_soap_response(valid_soap_response):
-    check_if_requests_post_returns_correct_response()
-
-
 @pytest.fixture
 def invalid_soap_response(monkeypatch):
     patch_requests_post_to_invalid_xml_text(monkeypatch)
-
-
-def test__invalid_soap_response(invalid_soap_response):
-    check_if_requests_post_returns_invalid_xml_text()
 
 
 @pytest.fixture
@@ -246,19 +256,9 @@ def valid_response(monkeypatch):
     valid_soap_response(monkeypatch)
 
 
-def test__valid_response(valid_response):
-    check_if_current_datetime_is_correctly_fixed()
-    test__valid_wsdl_001(None)
-    test__valid_soap_response(None)
-
-
 @pytest.fixture
 def soap_error(monkeypatch):
     patch_requests_post_to_return_soap_error(monkeypatch)
-
-
-def test__soap_error(soap_error):
-    check_if_requests_post_returns_soap_error()
 
 
 ###
@@ -322,6 +322,89 @@ def test__CybozuGaroonApi__init__works_correctly(language):
     assert api._password == params['password']
     assert api._language == params['language']
 
+
+###
+### g4s.cbgrn.api.CybozuGaroonApi.get_events
+###
+
+def test__CybozuGaroonApi__get_events__raises_ArgumentNullError_if_None_is_specified():
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 1, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 2, tzinfo='UTC')
+
+    with raises_argument_null_error('start'):
+        api.get_events(None, end)
+
+    with raises_argument_null_error('end'):
+        api.get_events(start, None)
+
+@pytest.mark.parametrize('obj', [1, 2.34, 'foo', object()])
+def test__CybozuGaroonApi__get_events__raises_ArgumentTypeError_if_object_except_DateTime_is_specified(obj):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 1, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 2, tzinfo='UTC')
+
+    with raises_argument_type_error('start'):
+        api.get_events(obj, end)
+
+    with raises_argument_type_error('end'):
+        api.get_events(start, obj)
+
+
+@pytest.mark.parametrize('obj', [1, 2.34, 'foo', object()])
+def test__CybozuGaroonApi__get_events__raises_ValueError_if_invalid_start_end_pair_is_specified(obj):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 1, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 2, tzinfo='UTC')
+
+    with pytest.raises(ValueError):
+        api.get_events(end, start)
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_empty_event_set_is_returned(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 1, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 2, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    assert events is not None
+    assert len(events) == 0
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_single_event_is_returned(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 2, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 7, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    verify_events(events, 'get_events-002')
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_required_value_is_missing_in_response(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 3, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 4, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    verify_events(events, 'get_events-003')
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_all_day_event_is_returned(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 4, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 9, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    verify_events(events, 'get_events-004')
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_start_only_event_is_returned(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 5, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 10, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    verify_events(events, 'get_events-005')
 
 
 ###
@@ -392,7 +475,7 @@ def test__CybouzGaroonApi__execute_soap_request__returns_valid_response(valid_re
     params = dict(start=DateTime.get(2014, 1, 1, tzinfo='UTC'), end=DateTime.get(2014, 1, 2, tzinfo='UTC'))
     response = api.execute_soap_request('ScheduleService', 'ScheduleGetEvents', params)
 
-    expected_response = parse_xml(read('g4s.cbgrn', 'get_events-001-response.xml'))
+    expected_response = [r[6] for r in SOAP_REQUEST_RESPONSE_PAIRS if r[0] == 'get_events-001'][0]
     assert xml_compare(response, expected_response)
 
 

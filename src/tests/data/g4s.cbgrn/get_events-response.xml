@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope
+  xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:schedule="http://wsdl.cybozu.co.jp/schedule/2008">
+  <soap:Header>
+    <vendor>Cybozu</vendor>
+    <product>Garoon</product>
+    <product_type>1</product_type>
+    <version>3.5.0</version>
+    <apiversion>1.2.0</apiversion>
+  </soap:Header>
+  <soap:Body>
+    <schedule:ScheduleGetEventsResponse>
+      <returns>
+        {% for event in events %}
+        <!-- begin event {{ loop.counter }} -->
+        <schedule_event
+          {% if 'id' in event %}id="{{ event.id }}"{% endif %}
+          {% if 'event_type' in event %}event_type="{{ event.event_type }}"{% endif %}
+          {% if 'public_type' in event %}public_type="{{ event.public_type }}"{% endif %}
+          {% if 'detail' in event %}detail="{{ event.detail }}"{% endif %}
+          {% if 'version' in event %}version="{{ event.version }}"{% endif %}
+          {% if 'timezone' in event %}timezone="{{ event.timezone }}"{% endif %}
+          {% if 'end_timezone' in event %}end_timezone="{{ event.end_timezone }}"{% endif %}
+          {% if 'allday' in event %}allday="{% if event.allday %}true{% else %}false{% endif %}"{% endif %}
+          {% if 'start_only' in event %}start_only="{% if event.start_only %}true{% else %}false{% endif %}"{% endif %}
+          >
+
+          {% if 'members' in event %}
+          <members xmlns="http://schemas.cybozu.co.jp/schedule/2008">
+            {% for member in event.members %}
+            <member>
+              <user
+                {% if member.id %}id="{{ member.id }}"{% endif %}
+                {% if member.name %}name="{{ member.name }}"{% endif %}
+                {% if member.order %}order="{{ member.order }}"{% endif %}
+                />
+            </member>
+            {% endfor %}
+          </members>
+          {% endif %}
+
+          {% if 'when' in event %}
+          <when xmlns="http://schemas.cybozu.co.jp/schedule/2008">
+            {% if event.when.has_time %}
+            <datetime
+              {% if 'start' in event.when %}start="{{ event.when.start.strftime('%Y-%m-%dT%H:%M:%SZ') }}"{% endif %}
+              {% if 'end' in event.when %}end="{{ event.when.end.strftime('%Y-%m-%dT%H:%M:%SZ') }}"{% endif %}
+              />
+            {% else %}
+            <date
+              {% if 'start' in event.when %}start="{{ event.when.start.strftime('%Y-%m-%d') }}"{% endif %}
+              {% if 'end' in event.when %}end="{{ event.when.end.strftime('%Y-%m-%d') }}"{% endif %}
+              />
+            {% endif %}
+          </when>
+          {% endif %}
+        </schedule_event>
+        <!-- end event {{ loop.counter }} -->
+        {% endfor %}
+      </returns>
+    </schedule:ScheduleGetEventsResponse>
+  </soap:Body>
+</soap:Envelope>

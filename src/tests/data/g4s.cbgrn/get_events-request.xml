@@ -1,12 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  get_event:
-    * start: 2014-01-01T00:00:00 (UTC)
-    * end:   2014-01-02T00:00:00 (UTC)
-
-  response:
-    * no events retrieved
--->
 <soap:Envelope
   xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -34,7 +26,7 @@
   </soap:Header>
   <soap:Body>
     <ScheduleGetEvents xmlns="http://wsdl.cybozu.co.jp/base/2008">
-      <parameters start="2014-01-01T00:00:00Z" end="2014-01-02T00:00:00Z"/>
+      <parameters start="{{ start.strftime('%Y-%m-%dT%H:%M:%SZ') }}" end="{{ end.strftime('%Y-%m-%dT%H:%M:%SZ') }}"/>
     </ScheduleGetEvents>
   </soap:Body>
 </soap:Envelope>
