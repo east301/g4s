@@ -11,6 +11,7 @@ from g4s.cbgrn.api import CybozuGaroonApi
 from g4s.core.api import NetworkError
 from g4s.core.api import ResponseParseError
 from g4s.core.date import DateTime
+from g4s.core.model import Event
 from .util import check_if_current_datetime_is_correctly_fixed
 from .util import fix_current_datetime
 from .util import parse_xml
@@ -61,6 +62,45 @@ def create_soap_response(generator_info, response_info):
     xml = lxml.etree.fromstring(body.encode('utf-8'))
     return xml
 
+
+def verify_events(events, expected_events_name):
+    record = [r for r in SOAP_REQUEST_RESPONSE_PAIRS if r[0] == expected_events_name][0]
+    name, service, action, req_info, req_xml, res_info, res_xml = record
+    error_event_ids = res_info['error'].get('event_ids', [])
+    expected_events = [e for e in res_info['events'] if e.get('id') not in error_event_ids]
+
+    if not expected_events:
+        assert len(events) == 0
+
+    else:
+        assert len(events) == len(expected_events)
+
+        for expected_event_info in expected_events:
+            expected_event_id = expected_event_info['id']
+
+            matched_events = [e for e in events if e.id == expected_event_id]
+            assert len(matched_events) == 1
+
+            event = matched_events[0]
+
+            #
+            if 'event_type' in expected_event_info:
+                type = expected_event_info['event_type']
+                type = {'normal': Event.NORMAL, 'banner': Event.BANNER}[type]
+                assert event.type == type
+            if 'public_type' in expected_event_info:
+                is_public = expected_event_info['public_type'].lower() == 'public'
+                assert event.is_public == is_public
+            if 'detail' in expected_event_info:
+                assert event.title == expected_event_info['detail']
+            if 'description' in expected_event_info:
+                assert event.description == expected_event_info['description']
+            if 'timezone' in expected_event_info:
+                assert event.start.tzinfo.g4s_name == expected_event_info['timezone']
+            if 'end_timezone' in expected_event_info:
+                assert event.end.tzinfo.g4s_name == expected_event_info['end_timezone']
+
+            # TODO
 
 ###
 ### constant values
@@ -419,10 +459,7 @@ def test__CybozuGaroonApi__get_events__returns_correct_result_when_single_event_
     end = DateTime.get(2014, 1, 7, tzinfo='UTC')
 
     events = api.get_events(start, end)
-    assert events is not None
-    assert len(events) == 1
-
-    # TODO
+    verify_events(events, 'get_events-002')
 
 
 def test__CybozuGaroonApi__get_events__returns_correct_result_when_required_value_is_missing_in_response(valid_response):
@@ -431,8 +468,7 @@ def test__CybozuGaroonApi__get_events__returns_correct_result_when_required_valu
     end = DateTime.get(2014, 1, 4, tzinfo='UTC')
 
     events = api.get_events(start, end)
-    assert events is not None
-    assert len(events) == 0
+    verify_events(events, 'get_events-003')
 
 
 def test__CybozuGaroonApi__get_events__returns_correct_result_when_all_day_event_is_returned(valid_response):
@@ -441,10 +477,7 @@ def test__CybozuGaroonApi__get_events__returns_correct_result_when_all_day_event
     end = DateTime.get(2014, 1, 9, tzinfo='UTC')
 
     events = api.get_events(start, end)
-    assert events is not None
-    assert len(events) == 1
-
-    # TODO: verify `events`
+    verify_events(events, 'get_events-004')
 
 
 def test__CybozuGaroonApi__get_events__returns_correct_result_when_start_only_event_is_returned(valid_response):
@@ -453,10 +486,7 @@ def test__CybozuGaroonApi__get_events__returns_correct_result_when_start_only_ev
     end = DateTime.get(2014, 1, 10, tzinfo='UTC')
 
     events = api.get_events(start, end)
-    assert events is not None
-    assert len(events) == 1
-
-    # TODO: verify `events`
+    verify_events(events, 'get_events-005')
 
 
 ###

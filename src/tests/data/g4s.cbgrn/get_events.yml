@@ -80,6 +80,8 @@ files:
       error:
         has_error:   true
         description: events are not constructed from the response because some required values are missing
+        event_ids:
+          - 11225
 
       events:
         - id: 11225  # other values (e.g. event_type, detail, etc.) are missing
