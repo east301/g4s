@@ -45,6 +45,7 @@ VALID_SOAP_ENDPOINTS = {
 
 SOAP_REQUEST_RESPONSE_PAIRS = [
     ('get_events-001', 'ScheduleService', 'ScheduleGetEvents'),
+    ('get_events-002', 'ScheduleService', 'ScheduleGetEvents'),
 ]
 
 
@@ -99,7 +100,6 @@ def patch_requests_post_to_return_correct_soap_response(monkeypatch):
         for prefix, service, action in SOAP_REQUEST_RESPONSE_PAIRS:
             canditate_url = VALID_SOAP_ENDPOINTS[service]
             canditate_xml = parse_xml(read('g4s.cbgrn', prefix + '-request.xml'))
-
             if url == canditate_url and xml_compare(request_xml, canditate_xml):
                 response_prefix = prefix
                 break
@@ -370,6 +370,17 @@ def test__CybozuGaroonApi__get_events__returns_correct_result_when_empty_event_s
     assert events is not None
     assert len(events) == 0
 
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_single_event_is_returned(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 2, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 7, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    assert events is not None
+    assert len(events) == 1
+
+    # TODO
 
 
 ###

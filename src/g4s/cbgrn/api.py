@@ -95,10 +95,7 @@ class CybozuGaroonApi(CalendarApi):
         params = dict(start=start, end=end)
         response = self.execute_soap_request('ScheduleService', 'ScheduleGetEvents', params)
 
-        try:
-            return tuple(self._create_event_parser(response))
-        except Exception as ex:
-            raise
+        return tuple(self._create_event_parser(response))
 
     def get_soap_endpoints(self):
         """
@@ -191,7 +188,7 @@ class CybozuGaroonApi(CalendarApi):
 
     def _parse_single_event(self, node):
         id = int(node.attrib['id'])
-        type = node.attrib['type'].lower()
+        type = node.attrib['event_type'].lower()
 
         if type in ('normal', 'banner'):
             type = Event.NORMAL if type == 'normal' else Event.BANNER
@@ -213,12 +210,12 @@ class CybozuGaroonApi(CalendarApi):
 
         #
         if is_allday:
-            dt_node = node.xpath('.//2008:when/s2008:date', namespaces=nss)[0]
+            dt_node = node.xpath('.//s2008:when/s2008:date', namespaces=nss)[0]
             start = DateTime.parse(dt_node.attrib['start'], start_tz_name)
             end = DateTime.parse(dt_node.attrib['end'], node.attrib['end_timezone'])
 
         else:
-            dt_node = node.xpath('.//2008:when/s2008:datetime', namespaces=nss)[0]
+            dt_node = node.xpath('.//s2008:when/s2008:datetime', namespaces=nss)[0]
             start = DateTime.parse(dt_node.attrib['start'], start_tz_name)
 
             if is_start_only:
@@ -231,7 +228,7 @@ class CybozuGaroonApi(CalendarApi):
 
     def _parse_common_event_information(self, node):
         #
-        is_public = node.attrib['public_type'].lower()
+        public_type = node.attrib['public_type'].lower()
         version = int(node.attrib['version'])
 
         detail = node.attrib['detail']
@@ -239,7 +236,7 @@ class CybozuGaroonApi(CalendarApi):
 
         start_tz_name = node.attrib['timezone']
         end_tz_name = node.attrib.get('end_timezone')
-        all_day = self._parse_bool(node.attrib['all_day'])
+        all_day = self._parse_bool(node.attrib['allday'])
         start_only = self._parse_bool(node.attrib['start_only'])
 
         members = tuple(self._create_member_parser(node))
@@ -259,7 +256,7 @@ class CybozuGaroonApi(CalendarApi):
             start_tz_name, end_tz_name, all_day, start_only, members
         )
 
-    def _parse_member_parser(self, node):
+    def _create_member_parser(self, node):
         nss = dict(s2008='http://schemas.cybozu.co.jp/schedule/2008')
         ordering = lambda m: int(m.get('order', 0))
 
