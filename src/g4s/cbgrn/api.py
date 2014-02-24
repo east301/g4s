@@ -176,7 +176,7 @@ class CybozuGaroonApi(CalendarApi):
         for node in response.xpath('//schedule_event'):
             try:
                 event = self._parse_single_event(node)
-            except Exception as ex:
+            except Exception:
                 # TODO: add code to log the exception
                 continue
 
