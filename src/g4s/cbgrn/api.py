@@ -168,6 +168,8 @@ class CybozuGaroonApi(CalendarApi):
         #
         request_text = self._render_request_body(service, action, action_params)
         response_text = self._send_soap_request(service, action, request_text)
+        if action == 'ScheduleGetEvents' and action_params['start'].day == 5:
+            open('/tmp/out.xml', 'w').write(response_text)
         response = self._parse_soap_response(response_text)
 
         return response

@@ -7,6 +7,15 @@ soap:
   service: ScheduleService
   action:  ScheduleGetEvents
 
+generators:
+  request:
+    template: get_events-request.xml
+    function: create_soap_request
+
+  response:
+    template: get_events-response.xml
+    function: create_soap_response
+
 files:
   ###
   get_events-001:
@@ -38,21 +47,23 @@ files:
         has_error: false
 
       events:
-        - id: 11225
+        - id:           11225
           event_type:   normal
+          public_type:  public
           detail:       event
           version:      0
           timezone:     Asia/Tokyo
           end_timezone: Asia/Tokyo
           allday:       false
           start_only:   false
-          participants:
+          members:
             - id:    1
               name:  foo
               order: 0
           when:
-            - start:    2014-01-03T00:00:00Z
-            - end:      2014-01-03T03:00:00Z
+            start:      2014-01-03T00:00:00Z
+            end:        2014-01-03T03:00:00Z
+            has_time:   true
 
     tests:
       - test__CybozuGaroonApi__get_events__returns_correct_result_when_single_event_is_returned
@@ -89,21 +100,23 @@ files:
         has_error: false
 
       events:
-        - id: 11225
+        - id:           11225
           event_type:   normal
+          public_type:  public
           detail:       event
           version:      0
           timezone:     Asia/Tokyo
           end_timezone: Asia/Tokyo
           allday:       true
           start_only:   false
-          participants:
-            - id:    1
-              name:  foo
-              order: 0
+          members:
+            - id:       1
+              name:     foo
+              order:    0
           when:
-            - start:    2014-01-05
-              end:      2014-01-05
+            start:      2014-01-05
+            end:        2014-01-05
+            has_time:   false
 
       tests:
         - test__CybozuGaroonApi__get_events__returns_correct_result_when_all_day_event_is_returned
@@ -123,17 +136,19 @@ files:
       events:
         - id: 11225
           event_type:   normal
+          public_type:  public
           detail:       event
           version:      0
           timezone:     Asia/Tokyo
           allday:       false
           start_only:   true
-          participants:
-            - id:    1
-              name:  foo
-              order: 0
+          members:
+            - id:       1
+              name:     foo
+              order:    0
           when:
-            - start:    2014-01-06T00:00:00Z
+            start:      2014-01-06T00:00:00Z
+            has_time:   true
 
     tests:
       - test__CybozuGaroonApi__get_events__returns_correct_result_when_start_only_event_is_returned
