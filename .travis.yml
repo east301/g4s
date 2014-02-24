@@ -12,6 +12,7 @@ script:
 after_success:
   - sudo apt-get update -qq
   - sudo apt-get install -qq sloccount
+  - source ~/virtualenv/python3.3/bin/activate
   - pip install coveralls coviolations-app coverage pep8 pip-tools
   - coveralls
   - covio
