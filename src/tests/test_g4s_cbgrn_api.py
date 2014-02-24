@@ -46,6 +46,9 @@ VALID_SOAP_ENDPOINTS = {
 SOAP_REQUEST_RESPONSE_PAIRS = [
     ('get_events-001', 'ScheduleService', 'ScheduleGetEvents'),
     ('get_events-002', 'ScheduleService', 'ScheduleGetEvents'),
+    ('get_events-003', 'ScheduleService', 'ScheduleGetEvents'),
+    ('get_events-004', 'ScheduleService', 'ScheduleGetEvents'),
+    ('get_events-005', 'ScheduleService', 'ScheduleGetEvents'),
 ]
 
 
@@ -381,6 +384,40 @@ def test__CybozuGaroonApi__get_events__returns_correct_result_when_single_event_
     assert len(events) == 1
 
     # TODO
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_required_value_is_missing_in_response(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 3, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 4, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    assert events is not None
+    assert len(events) == 0
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_all_day_event_is_returned(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 4, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 9, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    assert events is not None
+    assert len(events) == 1
+
+    # TODO: verify `events`
+
+
+def test__CybozuGaroonApi__get_events__returns_correct_result_when_start_only_event_is_returned(valid_response):
+    api = CybozuGaroonApi(VALID_API_PARAMS)
+    start = DateTime.get(2014, 1, 5, tzinfo='UTC')
+    end = DateTime.get(2014, 1, 10, tzinfo='UTC')
+
+    events = api.get_events(start, end)
+    assert events is not None
+    assert len(events) == 1
+
+    # TODO: verify `events`
 
 
 ###

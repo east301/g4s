@@ -180,8 +180,9 @@ class CybozuGaroonApi(CalendarApi):
                 # TODO: add code to log the exception
                 continue
 
-            if event is None:
+            if event is None:  # pragma: no cover
                 # when unsupported event type found
+                # TODO: add tests after adding 'repeat event' support
                 continue
 
             yield event
@@ -193,8 +194,9 @@ class CybozuGaroonApi(CalendarApi):
         if type in ('normal', 'banner'):
             type = Event.NORMAL if type == 'normal' else Event.BANNER
             return self._parse_normal_event(node, id, type)
-        else:
+        else:  # pragma: no cover
             # unsupported event types (e.g. repeat and temporary)
+            # TODO: add tests after adding 'repeat event' support
             return None
 
     def _parse_normal_event(self, node, id, type):
@@ -274,7 +276,7 @@ class CybozuGaroonApi(CalendarApi):
         elif text == 'false':
             return False
 
-        raise Exception  # TODO
+        raise Exception  # pragma: no cover
 
     ###
     ### SOAP
