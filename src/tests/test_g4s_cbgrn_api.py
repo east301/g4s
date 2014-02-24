@@ -144,11 +144,6 @@ def patch_requests_to_cause_network_error(monkeypatch, target):
     monkeypatch.setattr('requests.' + target, my_request_method)
 
 
-def check_if_requests_cause_network_error(target):
-    with pytest.raises(requests.exceptions.HTTPError):
-        getattr(requests, target)('http://www.google.com').raise_for_status()
-
-
 def patch_requests_get_to_return_specified_wsdl(monkeypatch, wsdl_path):
     def my_request_get(url, *args):
         # GET request is used only to get WSDL.
@@ -162,14 +157,6 @@ def patch_requests_get_to_return_specified_wsdl(monkeypatch, wsdl_path):
         return response
 
     monkeypatch.setattr('requests.get', my_request_get)
-
-
-def check_if_requests_get_returns_correct_wsdl(wsdl_path):
-    response = requests.get(SOAP_WSDL_URL)
-    text = response.text
-    expected_text = read(wsdl_path).decode('utf-8')
-
-    assert response.text == expected_text
 
 
 def patch_requests_post_to_return_correct_soap_response(monkeypatch):
@@ -201,17 +188,6 @@ def patch_requests_post_to_return_correct_soap_response(monkeypatch):
     monkeypatch.setattr('requests.post', my_request_post)
 
 
-# def check_if_requests_post_returns_correct_response():
-#     request_data = read('g4s.cbgrn', 'get_events-001-request.xml')
-#     response = requests.post(VALID_SOAP_ENDPOINTS['ScheduleService'], data=request_data)
-#     response.raise_for_status()
-
-#     response_xml = parse_xml(response.text.encode('utf-8'))
-#     expected_response_xml = parse_xml(read('g4s.cbgrn', 'get_events-001-response.xml'))
-
-#     assert xml_compare(response_xml, expected_response_xml)
-
-
 def patch_requests_post_to_invalid_xml_text(monkeypatch):
     def my_request_post(*args, **kwargs):
         response = mock.Mock(spec=requests.Response)
@@ -219,14 +195,6 @@ def patch_requests_post_to_invalid_xml_text(monkeypatch):
         return response
 
     monkeypatch.setattr('requests.post', my_request_post)
-
-
-def check_if_requests_post_returns_invalid_xml_text():
-    response = requests.post('http://example.com', data='foo')
-    response.raise_for_status()
-
-    with pytest.raises(Exception):
-        lxml.etree.fromstring(response.text.encode('utf-8'))
 
 
 def patch_requests_post_to_return_soap_error(monkeypatch):
@@ -240,22 +208,10 @@ def patch_requests_post_to_return_soap_error(monkeypatch):
     monkeypatch.setattr('requests.post', my_request_post)
 
 
-def check_if_requests_post_returns_soap_error():
-    response = requests.post('http://example.com', data='foo')
-    response.raise_for_status()
-
-    assert 'Fault' in response.text
-
-
 @pytest.fixture
 def network_error(monkeypatch):
     patch_requests_to_cause_network_error(monkeypatch, 'get')
     patch_requests_to_cause_network_error(monkeypatch, 'post')
-
-
-def test__network_error(network_error):
-    check_if_requests_cause_network_error('get')
-    check_if_requests_cause_network_error('post')
 
 
 @pytest.fixture
@@ -263,17 +219,9 @@ def network_post_error(monkeypatch):
     patch_requests_to_cause_network_error(monkeypatch, 'post')
 
 
-def test__network_post_error(network_post_error):
-    check_if_requests_cause_network_error('post')
-
-
 @pytest.fixture
 def invalid_wsdl_001(monkeypatch):
     patch_requests_get_to_return_specified_wsdl(monkeypatch, 'g4s.cbgrn/invalid_wsdl_001.xml')
-
-
-def test__invalid_wsdl_001(invalid_wsdl_001):
-    check_if_requests_get_returns_correct_wsdl('g4s.cbgrn/invalid_wsdl_001.xml')
 
 
 @pytest.fixture
@@ -281,17 +229,9 @@ def invalid_wsdl_002(monkeypatch):
     patch_requests_get_to_return_specified_wsdl(monkeypatch, 'g4s.cbgrn/invalid_wsdl_002.xml')
 
 
-def test__invalid_wsdl_002(invalid_wsdl_002):
-    check_if_requests_get_returns_correct_wsdl('g4s.cbgrn/invalid_wsdl_002.xml')
-
-
 @pytest.fixture
 def valid_wsdl_001(monkeypatch):
     patch_requests_get_to_return_specified_wsdl(monkeypatch, 'g4s.cbgrn/valid_wsdl_001.xml')
-
-
-def test__valid_wsdl_001(valid_wsdl_001):
-    check_if_requests_get_returns_correct_wsdl('g4s.cbgrn/valid_wsdl_001.xml')
 
 
 @pytest.fixture
@@ -299,26 +239,14 @@ def valid_incompleted_wsdl_001(monkeypatch):
     patch_requests_get_to_return_specified_wsdl(monkeypatch, 'g4s.cbgrn/valid_incompleted_wsdl_001.xml')
 
 
-def test__valid_incompleted_wsdl_001(valid_incompleted_wsdl_001):
-    check_if_requests_get_returns_correct_wsdl('g4s.cbgrn/valid_incompleted_wsdl_001.xml')
-
-
 @pytest.fixture
 def valid_soap_response(monkeypatch):
     patch_requests_post_to_return_correct_soap_response(monkeypatch)
 
 
-# def test__valid_soap_response(valid_soap_response):
-#     check_if_requests_post_returns_correct_response()
-
-
 @pytest.fixture
 def invalid_soap_response(monkeypatch):
     patch_requests_post_to_invalid_xml_text(monkeypatch)
-
-
-def test__invalid_soap_response(invalid_soap_response):
-    check_if_requests_post_returns_invalid_xml_text()
 
 
 @pytest.fixture
@@ -328,19 +256,9 @@ def valid_response(monkeypatch):
     valid_soap_response(monkeypatch)
 
 
-def test__valid_response(valid_response):
-    check_if_current_datetime_is_correctly_fixed()
-    test__valid_wsdl_001(None)
-    # test__valid_soap_response(None)
-
-
 @pytest.fixture
 def soap_error(monkeypatch):
     patch_requests_post_to_return_soap_error(monkeypatch)
-
-
-def test__soap_error(soap_error):
-    check_if_requests_post_returns_soap_error()
 
 
 ###
