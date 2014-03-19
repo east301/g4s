@@ -168,8 +168,6 @@ class CybozuGaroonApi(CalendarApi):
         #
         request_text = self._render_request_body(service, action, action_params)
         response_text = self._send_soap_request(service, action, request_text)
-        if action == 'ScheduleGetEvents' and action_params['start'].day == 5:
-            open('/tmp/out.xml', 'w').write(response_text)
         response = self._parse_soap_response(response_text)
 
         return response
@@ -177,25 +175,33 @@ class CybozuGaroonApi(CalendarApi):
     def _create_event_parser(self, response):
         for node in response.xpath('//schedule_event'):
             try:
-                event = self._parse_single_event(node)
+                result = self._parse_single_event_node(node)
             except Exception:
                 # TODO: add code to log the exception
                 continue
 
-            if event is None:  # pragma: no cover
+            if result is None:  # pragma: no cover
                 # when unsupported event type found
                 # TODO: add tests after adding 'repeat event' support
                 continue
 
-            yield event
+            if isinstance(result, Event):
+                yield result
+            elif isinstance(result, _RepeatEventRule):
+                for event in result.resolve():
+                    yield event
+            else:
+                raise LogicError  # pragma: no cover
 
-    def _parse_single_event(self, node):
+    def _parse_single_event_node(self, node):
         id = int(node.attrib['id'])
         type = node.attrib['event_type'].lower()
 
         if type in ('normal', 'banner'):
             type = Event.NORMAL if type == 'normal' else Event.BANNER
             return self._parse_normal_event(node, id, type)
+        elif type == 'repeat':
+            return self._parse_repeat_event(node, id)
         else:  # pragma: no cover
             # unsupported event types (e.g. repeat and temporary)
             # TODO: add tests after adding 'repeat event' support
@@ -229,6 +235,41 @@ class CybozuGaroonApi(CalendarApi):
 
         return Event(
             id, type, detail, description, start, end, is_allday, members, is_public, last_update)
+
+    def _parse_repeat_event(self, node, id):
+        #
+        (is_public, last_update, detail, description, start_tz_name, end_tz_name,
+            all_day, start_only, members) = self._parse_common_event_information(node)
+
+        if not end_tz_name:
+            end_tz_name = start_tz_name
+
+        #
+        nss = dict(s2008='http://schemas.cybozu.co.jp/schedule/2008')
+
+        repeat_info_node = node.xpath('.//s2008:repeat_info', namespaces=nss)[0]
+        repeat_cond_node = repeat_info_node.xpath('.//s2008:condition', namespaces=nss)[0]
+
+        repeat_type = repeat_cond_node.attrib['type']
+        repeat_day = int(repeat_cond_node.attrib['day'])
+        repeat_week = int(repeat_cond_node.attrib['week'])
+        repeat_start_date = DateTime.parse(repeat_cond_node.attrib['start_date'], start_tz_name)
+        repeat_end_date = DateTime.parse(repeat_cond_node.attrib['end_date'], end_tz_name)
+
+        #
+        exc_dt_nodes = repeat_info_node.xpath('.//s2008:exclusive_datetime', namespaces=nss)
+        exc_dts = []
+        if exc_dt_nodes:
+            for exc_dt_node in exc_dt_nodes:
+                start = DateTime.parse(exc_dt_node.attrib['start'], 'UTC')
+                end = DateTime.parse(exc_dt_node.attrib['end'], 'UTC')
+                exc_dts.append((start, end))
+
+            exc_dts.sort(key=lambda r: r[0])
+
+        yield _RepeatEventRule(
+            id, detail, description, all_day, start_only, members, is_public, last_update,
+            repeat_type, repeat_day, repeat_week, repeat_start_date, repeat_end_date, exc_dts)
 
     def _parse_common_event_information(self, node):
         #
@@ -370,3 +411,56 @@ class CybozuGaroonApi(CalendarApi):
     def _jinja2_filter_utc_datetime(self, dt):
         dt = dt.astimezone(TimeZone.get('UTC'))
         return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+class _RepeatEventRule(object):
+    def __init__(
+            self, id, type, detail, description, all_day, start_only,
+            members, is_public, last_update,
+            repeat_type, repeat_day, repeat_week, repeat_start_date, repeat_end_date,
+            exclusive_datetimes):
+
+            self.id = id
+            self.type = type.lower()
+            self.detail = detail
+            self.description = description
+            self.is_all_day = all_day
+            self.is_start_only = start_only
+            self.repeat_type = repeat_type
+            self.repeat_day = repeat_day
+            self.repeat_week = repeat_week
+            self.repeat_start_date = repeat_start_date
+            self.repeat_end_date = repeat_end_date
+            self.exclusive_datetimes = exclusive_datetimes
+
+    def resolve(self):
+        if self.type == 'day':
+            return self._resolve_day_type()
+        elif self.type == 'weekday':
+            return self._resolve_weekday_type()
+        elif self.type in ('1stweek', '2ndweek', '3rdweek', '4thweek'):
+            return self._resolve_x_week_type()
+        elif self.type == 'lastweek':
+            return self._resolve_last_week_type()
+        elif self.type == 'month':
+            return self._resolve_month_type()
+        else:
+            raise LogicError
+
+    def _resolve_day_type(self):
+        current = self.start_date
+        while current < self.end_date:
+            yield current
+            current += datetime.timedelta(days=1)
+
+    def _resolve_weekday_type(self):
+        pass
+
+    def _resolve_x_week_type(self):
+        pass
+
+    def _resolve_last_week_type(self):
+        pass
+
+    def _resolve_month_type(self):
+        pass
