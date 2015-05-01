@@ -1,4 +1,0 @@
-violations:
-  pep8: pep8 --max-line-length 100 src/g4s
-  pip_review: pip-review
-  sloccount: sloccount src/g4s

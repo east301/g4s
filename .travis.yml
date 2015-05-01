@@ -1,17 +1,12 @@
 language: python
 
 install:
-  - pip install detox
+  - pip install tox
 
 script:
-  - detox -e py33 -e flake8
+  - tox
 
 after_success:
   - source ~/virtualenv/python3.3/bin/activate
   - pip install coveralls
   - coveralls
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq sloccount
-  - source ~/virtualenv/python2.7/bin/activate
-  - pip install coviolations-app pep8 pip-tools
-  - covio
