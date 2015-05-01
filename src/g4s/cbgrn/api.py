@@ -289,9 +289,9 @@ class CybozuGaroonApi(CalendarApi):
         #
         is_public = public_type == 'public'
 
-        ## TODO: remove hardcording of timezone name 'Asia/Tokyo'
-        ##   `version` should be interpreted as 'system(server) local' timestamp,
-        ##   however, there seems no way to get server's time zone configuration.
+        # TODO: remove hardcording of timezone name 'Asia/Tokyo'
+        #   `version` should be interpreted as 'system(server) local' timestamp,
+        #   however, there seems no way to get server's time zone configuration.
         vt = datetime.datetime.fromtimestamp(version).timetuple()[:6]
         last_update = DateTime.get(*vt, tzinfo='Asia/Tokyo')
 
@@ -321,9 +321,9 @@ class CybozuGaroonApi(CalendarApi):
 
         raise Exception  # pragma: no cover
 
-    ###
-    ### SOAP
-    ###
+    #
+    # SOAP
+    #
 
     def _render_request_body(self, service, action, action_params):
         #
