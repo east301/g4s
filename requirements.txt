@@ -4,7 +4,7 @@ Sphinx==1.4.4
 flake8==2.6.2
 lxml==3.6.0
 mock==2.0.0
-pytest-cov==2.2.1
+pytest-cov==2.3.0
 pytest==2.9.2
 python-dateutil==2.5.3
 requests==2.10.0
