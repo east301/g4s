@@ -1,7 +1,7 @@
 Jinja2==2.8
 PyYAML==3.11
 Sphinx==1.4.5
-flake8==3.0.2
+flake8==3.0.3
 lxml==3.6.1
 mock==2.0.0
 pytest-cov==2.3.0
