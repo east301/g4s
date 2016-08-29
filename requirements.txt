@@ -1,5 +1,5 @@
 Jinja2==2.8
-PyYAML==3.11
+PyYAML==3.12
 Sphinx==1.4.6
 flake8==3.0.4
 lxml==3.6.4
