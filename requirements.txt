@@ -1,6 +1,6 @@
 Jinja2==2.8
 PyYAML==3.12
-Sphinx==1.4.8
+Sphinx==1.4.9
 flake8==3.2.1
 lxml==3.6.4
 mock==2.0.0
