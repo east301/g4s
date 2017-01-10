@@ -1,4 +1,4 @@
-Jinja2==2.9.3
+Jinja2==2.9.4
 PyYAML==3.12
 Sphinx==1.5.1
 flake8==3.2.1
